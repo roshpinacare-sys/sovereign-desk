@@ -105,7 +105,17 @@ export async function POST(req: Request) {
   const voices = Array.isArray(payload.voices) ? payload.voices.map(String).slice(0, 8) : [];
   const personas = Array.isArray(payload.personas) ? payload.personas.map(String).slice(0, 16) : [];
   const publishersToday = Array.isArray(payload.publishersToday) ? payload.publishersToday.map(String).slice(0, 14) : [];
-  const recentTitles = Array.isArray(payload.recentTitles) ? payload.recentTitles.map(String).slice(0, 30) : [];
+  /* R367 · THE FULL SHIELD: the caller sends up to 140 recent titles (the
+   * engine's published shield) — the old slice(0,30) blinded the model to
+   * 110 of them and it kept regurgitating near-duplicate titles that then
+   * died SILENTLY at the engine's dedupeTitles (measured 2026-11-15T20:30Z:
+   * NO-DRAFTS with zero refusal events — a blind drop violates the engine's
+   * own R308 rejection-diagnosis law). The model must see the whole shield. */
+  const recentTitles = Array.isArray(payload.recentTitles) ? payload.recentTitles.map(String).slice(0, 140) : [];
+  /* R367: the spent memory (vetoed ∪ refused ∪ queued) rides with the payload —
+   * merged into the avoid-list the model sees. */
+  const spentTitles = Array.isArray(payload.spentTitles) ? payload.spentTitles.map(String).slice(0, 60) : [];
+  const avoidTitles = [...new Set([...recentTitles, ...spentTitles])];
   const findings = Array.isArray(payload.findings) ? payload.findings.map(String).slice(0, 20) : [];
 
   if (!topics.length) {
@@ -134,7 +144,7 @@ export async function POST(req: Request) {
     voices.length ? `Voices available. ${voices.join(" | ")}` : "",
     personas.length ? `Persona notes (account + voice brief). ${personas.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" | ").slice(0, 2600)}` : "",
     findings.length ? `Measured findings you may ground on (quote the one you use). ${findings.map((f) => `- ${f.slice(0, 240)}`).join("\n")}` : "",
-    recentTitles.length ? `Titles already published recently, yours must differ. ${recentTitles.join(" | ").slice(0, 1500)}` : "",
+    avoidTitles.length ? `Titles already published, refused, or queued recently — yours must differ from ALL of them. ${avoidTitles.join(" | ").slice(0, 2600)}` : "",
     "Write the 3 drafts now as strict JSON.",
   ]
     .filter(Boolean)
