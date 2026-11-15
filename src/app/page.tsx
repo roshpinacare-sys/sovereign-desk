@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Activity, Boxes, Coins, RefreshCw, Landmark, ShieldCheck, TriangleAlert, GitBranch } from "lucide-react";
 import { SovereignBina } from "@/components/sovereign-bina";
+import { OvernightLane } from "@/components/overnight-lane";
 
 type Live = any;
 
@@ -290,6 +291,11 @@ export default function Page() {
               </div>
             </CardContent>
           </Card>
+        </section>
+
+        {/* Sovereign Overnight Lane — dry-run execution desk over real chain fills */}
+        <section>
+          <OvernightLane />
         </section>
 
         {/* Sovereign Bina — live-training tiny model, fleet law mapped */}
