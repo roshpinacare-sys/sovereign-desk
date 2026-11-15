@@ -126,17 +126,33 @@ export function commentLawGuard(raw: string, floor = 200): GuardResult {
 /* ── LLM CORE — one completion, honest errors ─────────────────────────────── */
 
 export async function llmComplete(system: string, user: string, timeoutMs = 75_000): Promise<string> {
-  const zai = await ZAI.create();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: "assistant", content: system },
-      { role: "user", content: user },
-    ],
-    thinking: { type: "disabled" },
-  });
-  const content = completion.choices?.[0]?.message?.content;
-  if (!content || !content.trim()) throw new Error("empty-completion");
-  return content.trim();
+  const attempt = async (): Promise<string> => {
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "assistant", content: system },
+        { role: "user", content: user },
+      ],
+      thinking: { type: "disabled" },
+    });
+    const content = completion.choices?.[0]?.message?.content;
+    if (!content || !content.trim()) throw new Error("empty-completion");
+    return content.trim();
+  };
+  try {
+    return await attempt();
+  } catch (e) {
+    /* R-429 2026-11-15 · measured: the provider rate-limits in bursts
+     * ("Too many requests"). One backoff retry inside the route (25s) lets a
+     * transient storm pass without surfacing a 503 to the engine's breaker —
+     * the caller's own retry + circuit breaker stay the outer defenses. */
+    const msg = String((e as Error)?.message ?? e);
+    if (/429|too many requests/i.test(msg)) {
+      await new Promise((r) => setTimeout(r, 25_000));
+      return await attempt();
+    }
+    throw e;
+  }
 }
 
 /* ── SHARED SYSTEM-LAW BLOCKS (the writer reads them every call) ──────────── */
