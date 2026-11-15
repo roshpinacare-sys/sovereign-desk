@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Activity, Boxes, Coins, RefreshCw, Landmark, ShieldCheck, TriangleAlert, GitBranch } from "lucide-react";
 import { SovereignBina } from "@/components/sovereign-bina";
 import { OvernightLane } from "@/components/overnight-lane";
+import { FleetProof } from "@/components/fleet-proof";
 
 type Live = any;
 
@@ -296,6 +297,11 @@ export default function Page() {
         {/* Sovereign Overnight Lane — dry-run execution desk over real chain fills */}
         <section>
           <OvernightLane />
+        </section>
+
+        {/* Fleet Proof — purpose-built: execution truth, resilience ledger, B8 drill */}
+        <section>
+          <FleetProof />
         </section>
 
         {/* Sovereign Bina — live-training tiny model, fleet law mapped */}
