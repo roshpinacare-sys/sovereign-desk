@@ -35,6 +35,7 @@ type Draft = {
   title: string;
   body: string;
   tags: string[];
+  persona?: string | null;
   angle?: string | null;
   voice?: string | null;
   seoNote?: string | null;
@@ -65,15 +66,26 @@ function draftLawGuard(d: Record<string, unknown>): Draft | null {
   const open = `${title.toLowerCase()}\n${body.slice(0, 140).toLowerCase()}`;
   if (GENERIC_OPENERS.some((g) => open.includes(g))) return null;
   if (normalizeForMeasure(body).length < 1200) return null;
-  const groundedOn = (Array.isArray(d.groundedOn) ? d.groundedOn : [])
+  /* LLMs often return groundedOn as a bare string — normalize both shapes
+   * into the array the engine's sanitizeDraft requires. */
+  const groundedRaw = Array.isArray(d.groundedOn)
+    ? d.groundedOn
+    : typeof d.groundedOn === "string" && d.groundedOn.trim()
+      ? [d.groundedOn]
+      : typeof d.groundedOn?.[0] === "string"
+        ? (d.groundedOn as string[])
+        : [];
+  const groundedOn = groundedRaw
     .map((g) => String(g).slice(0, 160))
     .filter(Boolean)
     .slice(0, 4);
   if (groundedOn.length < 1) return null; // spamgate minGroundedRefs = 1
+  const persona = typeof d.persona === "string" && /^[a-z0-9-]{2,24}$/.test(d.persona) ? d.persona : null;
   return {
     title: title.slice(0, 160),
     body: body.slice(0, 8000),
     tags,
+    persona,
     angle: String(d.angle ?? "").slice(0, 300) || null,
     voice: String(d.voice ?? "").slice(0, 300) || null,
     seoNote: String(d.seoNote ?? "").slice(0, 300) || null,
@@ -92,6 +104,7 @@ export async function POST(req: Request) {
   const topics = Array.isArray(payload.topics) ? payload.topics.map(String).slice(0, 12) : [];
   const voices = Array.isArray(payload.voices) ? payload.voices.map(String).slice(0, 8) : [];
   const personas = Array.isArray(payload.personas) ? payload.personas.map(String).slice(0, 16) : [];
+  const publishersToday = Array.isArray(payload.publishersToday) ? payload.publishersToday.map(String).slice(0, 14) : [];
   const recentTitles = Array.isArray(payload.recentTitles) ? payload.recentTitles.map(String).slice(0, 30) : [];
   const findings = Array.isArray(payload.findings) ? payload.findings.map(String).slice(0, 20) : [];
 
@@ -102,7 +115,7 @@ export async function POST(req: Request) {
   const system = [
     "You are a professional writer producing original community posts for a blockchain blogging platform.",
     "Hard laws for every draft.",
-    `1. Body length between 340 and 500 words, structured with short paragraphs. First paragraph must stand alone.`,
+    `1. Body length is a HARD LAW: between 550 and 750 words (models undershoot, so aim high; a draft under 340 words is refused). Structured with short paragraphs, first paragraph stands alone.`,
     `2. Title between 12 and 100 characters, concrete curiosity, never clickbait, never generic.`,
     `3. Exactly 3 to 5 topical lowercase tags, no hashtag symbols, each under 24 chars.`,
     `4. Every draft must be grounded in at least one of the provided findings, and you must list the finding(s) it used in a groundedOn array, quoting the finding.`,
@@ -110,13 +123,16 @@ export async function POST(req: Request) {
     `6. Markdown allowed (headings, bold, lists). No images, no URLs in the body.`,
     `7. Never mention AI, automation, coordinated accounts, or any internal system. No financial advice, no price predictions.`,
     `8. If recent titles are provided, the new titles must be clearly different from all of them.`,
-    "Return STRICT JSON only, no prose, no code fence. Shape {\"drafts\":[{\"title\",\"body\",\"tags\":[...],\"angle\",\"voice\",\"seoNote\",\"groundedOn\":[...]}]} with exactly 3 drafts.",
+    publishersToday.length
+      ? `9. WRITE FOR TODAY'S PUBLISHERS. Each draft carries a persona field set to exactly one of these accounts: ${publishersToday.join(", ")}. Write in that account's voice as described in the persona notes, each account at most once, and never mention the account name in the body.`
+      : `9. If persona notes are provided, write in a matching human voice and set the persona field to the account name it matches, at most once per account.`,
+    "Return STRICT JSON only, no prose, no code fence. Shape {\"drafts\":[{\"title\",\"body\",\"tags\":[...],\"persona\",\"angle\",\"voice\",\"seoNote\",\"groundedOn\":[...]}]} with exactly 3 drafts.",
   ].join("\n");
 
   const user = [
     `Topics to draw from. ${topics.join(" | ")}`,
     voices.length ? `Voices available. ${voices.join(" | ")}` : "",
-    personas.length ? `Persona notes. ${personas.join(" | ").slice(0, 2000)}` : "",
+    personas.length ? `Persona notes (account + voice brief). ${personas.map((p) => (typeof p === "string" ? p : JSON.stringify(p))).join(" | ").slice(0, 2600)}` : "",
     findings.length ? `Measured findings you may ground on (quote the one you use). ${findings.map((f) => `- ${f.slice(0, 240)}`).join("\n")}` : "",
     recentTitles.length ? `Titles already published recently, yours must differ. ${recentTitles.join(" | ").slice(0, 1500)}` : "",
     "Write the 3 drafts now as strict JSON.",
@@ -126,15 +142,29 @@ export async function POST(req: Request) {
 
   try {
     const raw = await llmComplete(system, user, 240_000);
-    const jsonStart = raw.indexOf("{");
-    const jsonEnd = raw.lastIndexOf("}");
-    if (jsonStart < 0 || jsonEnd <= jsonStart) {
-      return NextResponse.json({ error: "no-json" }, { status: 503 });
+    const parseDrafts = (text: string) => {
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}");
+      if (jsonStart < 0 || jsonEnd <= jsonStart) return [];
+      try {
+        const parsed = JSON.parse(text.slice(jsonStart, jsonEnd + 1)) as { drafts?: unknown[] };
+        return Array.isArray(parsed.drafts) ? parsed.drafts : [];
+      } catch { return []; }
+    };
+    let candidates = parseDrafts(raw);
+    let drafts = candidates.map((d) => draftLawGuard(d as Record<string, unknown>)).filter((d): d is Draft => d !== null);
+    /* R-undershoot 2026-11-15 · measured: the model writes 157-177 words
+     * against a 340-word floor. ONE honest retry with the measured counts
+     * as feedback — the door law never moves, the writer rises to it. */
+    if (!drafts.length && candidates.length) {
+      const measured = candidates
+        .map((d) => String((d as Record<string, unknown>)?.body ?? "").split(/\s+/).filter(Boolean).length)
+        .join(", ");
+      const retryUser = `${user}\n\nYour previous drafts were refused. Measured word counts per draft. ${measured}. Every body MUST be between 550 and 750 words (you undershot). Also verify. 3-5 lowercase tags, groundedOn quoting one finding, persona set per the publishers law. Write 3 corrected drafts as strict JSON.`;
+      const raw2 = await llmComplete(system, retryUser, 240_000);
+      candidates = parseDrafts(raw2);
+      drafts = candidates.map((d) => draftLawGuard(d as Record<string, unknown>)).filter((d): d is Draft => d !== null);
     }
-    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as { drafts?: unknown[] };
-    const drafts = (Array.isArray(parsed.drafts) ? parsed.drafts : [])
-      .map((d) => draftLawGuard(d as Record<string, unknown>))
-      .filter((d): d is Draft => d !== null);
     /* fail-honest: return only what cleared the laws, even if that is fewer than asked */
     return NextResponse.json({ drafts });
   } catch (e) {
