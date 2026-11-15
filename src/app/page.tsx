@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Activity, Boxes, Coins, RefreshCw, Landmark, ShieldCheck, TriangleAlert, GitBranch } from "lucide-react";
+import { Activity, Boxes, Coins, RefreshCw, Landmark, ShieldCheck, TriangleAlert, GitBranch, HeartPulse } from "lucide-react";
 import { SovereignBina } from "@/components/sovereign-bina";
 import { OvernightLane } from "@/components/overnight-lane";
 import { FleetProof } from "@/components/fleet-proof";
@@ -78,6 +78,9 @@ export default function Page() {
   const army = live?.army?.public;
   const receipts = live?.army?.receipts;
   const soldiers = chain?.soldiers ?? [];
+  const rx = live?.resurrection;
+  const hb = rx?.heartbeat;
+  const rxGrid = dex?.gridPublic;
 
   const weeklyInflow = treasury?.toWithdrawVests && chain?.vestsPerSp ? treasury.toWithdrawVests / 13 / chain.vestsPerSp : null;
   const pdownPct = treasury?.toWithdrawVests ? Math.min(100, (treasury.withdrawnVests / treasury.toWithdrawVests) * 100) : 0;
@@ -124,6 +127,52 @@ export default function Page() {
         <section className="flex items-center justify-between gap-3 flex-wrap">
           <SourceDots sources={live?.sources ?? []} />
           <span className="text-[11px] font-mono text-muted-foreground">poll #{tick} · auto every 60s</span>
+        </section>
+
+        {/* Resurrection ledger — 2026-11-15, measured cures only */}
+        <section>
+          <Card className="border-emerald-200 dark:border-emerald-900">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <HeartPulse className="h-4 w-4 text-emerald-600" /> RESURRECTION LEDGER · 2026-11-15
+              </CardTitle>
+              <CardDescription>
+                every verdict below is read live from git-carried state (saos-runtime heartbeat · saos-dex · engine :3040) — was 0/14 dead for 3 months
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">custody</div>
+                <div className={`text-lg font-mono font-bold ${hb?.custody === "14/14" ? "text-emerald-600" : "text-amber-600"}`}>{hb?.custody ?? "—"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">chain-judged · was 0/14</div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">grid orders</div>
+                <div className="text-lg font-mono font-bold">{rxGrid?.openOrdersNow ?? "—"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{rxGrid?.verdict ?? "—"} · {fmt(rxGrid?.realFillsCumulative ?? null, 0)} fills · was 0 placed</div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">social rail</div>
+                <div className={`text-sm font-mono font-bold ${(hb?.social ?? "").includes("EXECUTED") ? "text-emerald-600" : "text-amber-600"}`}>{hb?.social ?? "—"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{hb?.socialExecuted ?? 0} today · bridge rebuilt</div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">portfolio</div>
+                <div className={`text-sm font-mono font-bold ${hb?.portfolioSnapshot === "SNAPSHOT-OK" ? "text-emerald-600" : "text-amber-600"}`}>{hb?.portfolioSnapshot ?? "—"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{hb?.portfolioAssets ?? 0} assets · {hb?.portfolioSig ?? "—"}</div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">engine :3040</div>
+                <div className={`text-lg font-mono font-bold ${rx?.engine?.ok ? "text-emerald-600" : "text-red-600"}`}>{rx?.engine?.ok ? "ALIVE" : "DOWN"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">keeper law · 22-min economy</div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">blurt bodies</div>
+                <div className={`text-lg font-mono font-bold ${hb?.blurt === "BLURT-BODIES-LIVE" ? "text-emerald-600" : "text-amber-600"}`}>{hb?.blurtLive ?? "—"}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{hb?.blurt ?? "—"}</div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Treasury */}
