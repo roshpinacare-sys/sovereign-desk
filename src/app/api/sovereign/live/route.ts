@@ -38,7 +38,7 @@ async function safe<T>(label: string, fn: () => Promise<T>) {
 export async function GET() {
   const t0 = Date.now();
 
-  const [accountsRes, dgpoRes, delegsRes, bookRes, armyRes, dexRes, volumeRes, receiptsRes, gridRes, hbRes, engineRes] = await Promise.all([
+  const [accountsRes, dgpoRes, delegsRes, bookRes, armyRes, dexRes, volumeRes, receiptsRes, gridRes] = await Promise.all([
     safe("steem:accounts", async () => {
       const accs = await rpc("condenser_api.get_accounts", [["headcorner", ...ARMY]]);
       return accs;
@@ -51,15 +51,6 @@ export async function GET() {
     safe("saos-dex:volume-verify", () => raw("saos-dex", "grids/state/volume-verify.json").then((t) => JSON.parse(t))),
     safe("saos-dex:receipts", () => raw("saos-dex", "grids/state/army-receipts.jsonl").then((t) => t.trim().split("\n").slice(-6).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean))),
     safe("saos-dex:grid-public", () => raw("saos-dex", "db/grid-public.json").then((t) => JSON.parse(t))),
-    /* R-resurrection 2026-11-15 · the canonical CI heartbeat (custody/social/dex/portfolio
-     * verdicts — git-carried truth from saos-runtime@HEAD) */
-    safe("saos-runtime:heartbeat", () => raw("saos-runtime", "state/beat/ci-last-heartbeat.json").then((t) => JSON.parse(t))),
-    /* local sovereign engine :3040 (primary trading home — same machine, server-side only) */
-    safe("engine:3040", async () => {
-      const r = await fetch("http://127.0.0.1:3040/health", { signal: AbortSignal.timeout(4000), cache: "no-store" });
-      if (!r.ok) throw new Error(`engine http ${r.status}`);
-      return r.json();
-    }),
   ]);
 
   const accounts: any[] = accountsRes.ok ? accountsRes.data : [];
@@ -133,21 +124,7 @@ export async function GET() {
       chain: { vestsPerSp, treasury, soldiers, delegations, book, dgpo: dgpo ? { head_block: dgpo.head_block_number, time: dgpo.time } : null },
       army: { public: armyRes.ok ? armyRes.data : { error: armyRes.error }, receipts: receiptsRes.ok ? receiptsRes.data : { error: receiptsRes.error } },
       dex: { ...dex, volumeVerify: volumeRes.ok ? volumeRes.data : { error: volumeRes.error }, gridPublic: gridRes.ok ? gridRes.data : { error: (gridRes as any).error } },
-      resurrection: {
-        heartbeat: hbRes.ok
-          ? ((hb: any) => ({
-              at: hb.at, custody: hb.custody, social: hb.social, socialExecuted: hb.socialExecuted ?? 0,
-              content: hb.content, post: hb.post, dex: hb.dex, dexReason: hb.dexReason,
-              portfolioSnapshot: hb.portfolioSnapshot, portfolioSig: hb.portfolioSig,
-              portfolioTop: hb.portfolioTop, portfolioAssets: hb.portfolioAssets,
-              blurt: hb.blurt, blurtLive: hb.blurtLive, delegation: hb.delegation,
-            }))(hbRes.data)
-          : { error: hbRes.error },
-        engine: engineRes.ok
-          ? { ok: true, service: engineRes.data.service, at: engineRes.data.at, account: engineRes.data.account }
-          : { ok: false, error: engineRes.error },
-      },
-      sources: [accountsRes, dgpoRes, delegsRes, bookRes, armyRes, dexRes, volumeRes, receiptsRes, gridRes, hbRes, engineRes].map((s) => ({ source: s.source, ok: s.ok, error: (s as any).error, at: s.at })),
+      sources: [accountsRes, dgpoRes, delegsRes, bookRes, armyRes, dexRes, volumeRes, receiptsRes, gridRes].map((s) => ({ source: s.source, ok: s.ok, error: (s as any).error, at: s.at })),
     },
     { headers: { "Cache-Control": "no-store" } },
   );
