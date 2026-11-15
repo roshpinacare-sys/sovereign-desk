@@ -15,7 +15,17 @@
  */
 import { spawn } from "node:child_process";
 
-const KEEPER = "/home/z/audit/saos-dex/deploy/dex-beat-keeper.sh"; // W2.0: repointed to the git-resident canonical keeper (was /home/z/audit/beat-keeper.sh — dead path, measured exit=127 at :00/:30 for hours). Redundant pacer by design: the OS flock + the keeper's own standby guard (cloud-first, 10min) arbitrate overlap — honest skip, never a double beat.
+/* W2.0: the DEX keeper (git-resident in saos-dex) — redundant pacer by design;
+ * the OS flock + the keeper's own standby guard (cloud-first, 10min) arbitrate
+ * overlap — honest skip, never a double beat. */
+const DEX_KEEPER = "/home/z/audit/saos-dex/deploy/dex-beat-keeper.sh";
+/* WIPE-26 LAW (2026-11-15): the SOVEREIGN engine beat (steem@saos-cockpit
+ * deploy/beat-keeper.sh, now git-resident — was local-only and died with every
+ * wipe) runs the ONLINE content lane: SAOS_ONLINE_CONTENT=1 dials THIS desk's
+ * bridge route so fresh LLM drafts feed the queue the cloud publish rail airs.
+ * The cloud beat stays the wipe-proof primary (offline corpus floor); this
+ * local layer is the only place the live bridge can exist. */
+const SOVEREIGN_KEEPER = "/home/z/my-project/fleet/steem/deploy/beat-keeper.sh";
 const HALF_HOUR_MS = 30 * 60 * 1000;
 
 let started = false;
@@ -27,19 +37,23 @@ export function startBeatScheduler(): void {
   const log = (...a: unknown[]) =>
     console.log("[beat-keeper]", new Date().toISOString(), ...a);
 
-  const runBeat = () => {
+  const runKeeper = (keeper: string, label: string) => {
     try {
-      const p = spawn("/bin/bash", [KEEPER], { stdio: "ignore" });
-      p.on("exit", (code) => log("beat finished, keeper exit =", code));
-      p.on("error", (e) => log("beat spawn error:", String(e)));
+      const p = spawn("/bin/bash", [keeper], { stdio: "ignore" });
+      p.on("exit", (code) => log(label, "finished, exit =", code));
+      p.on("error", (e) => log(label, "spawn error:", String(e)));
       return p;
     } catch (e) {
-      log("beat spawn-fail:", String(e));
+      log(label, "spawn-fail:", String(e));
       return null;
     }
   };
+  const runBeat = () => {
+    runKeeper(SOVEREIGN_KEEPER, "sovereign-beat");
+    runKeeper(DEX_KEEPER, "dex-beat");
+  };
 
-  log("scheduler armed — catch-up beat in 15s, then every 30min");
+  log("scheduler armed — catch-up beat in 15s, then every 30min (sovereign+dex)");
 
   /* catch-up beat: cover the gap since the last session's beats */
   setTimeout(runBeat, 15_000);
