@@ -68,3 +68,20 @@ server.log
 .env.*
 *.secret
 *.secret.*
+
+# wipe24 + custody hygiene: local-only material never reaches the public remote
+.local-preserve/
+.env
+.env.bak
+/db/
+/prisma/
+/scripts/
+/tool-results/
+/.zscripts/
+/tests/
+/examples/
+/download/
+/mini-services/
+fleet/.secrets/
+fleet/.crown-pass-v6
+fleet/.crown-pass*
