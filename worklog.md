@@ -869,3 +869,25 @@ Stage Summary:
 - Three dead laws resurrected in one session (locked-shape, live-price, estate-bind) + one latent chain constraint fixed (replace over live orderid) — each root-caused from on-chain evidence, selftest-locked, pushed.
 - Volume path now honest: book re-prices every ~27min instead of aging 7 days; verified fill baseline 23 fills / 7.208 STEEM is pre-deployment — the 78-STEEM live book is the multiplier.
 - Phase-2 (DEX + more tools) remains per owner priority — the activation floor is now solid enough to build on.
+
+## 2026-11-15 · WIPE-26 RESURRECTION + REVENUE-RAIL ROOT CURES (R364-R367)
+
+**Wipe #26 reality**: /home/z/audit + /home/z/.judge gone; everything rebuilt from git alone (RECOVER-ALL + boot-fleet + 9 private repos + steem@saos-cockpit engine branch — the branch IS the "saos-cockpit" home).
+
+**THE MONTH-LONG SILENCE (owner's core complaint, proven)**: the publish rail's last broadcast was 2026-10-19. Root cause (R366): army-social doPublish's R297 ledger calls referenced out-of-scope `master` → ReferenceError at every 12h-TTL ledger rebuild → ledger-unavailable-fail-closed → EVERY draft vetoed → a month of NOTHING-NEW. Fix: `[masterAccount(), ...ARMY_ROSTER]` (engine 27713814e), live-verified: ledger 460 posts 0 failed, uniqueness ok=true.
+
+**PROOF THE RAIL LIVES AGAIN**: post BROADCASTED by `tov` @ 2026-11-15T20:33:39Z — `the-quiet-power-of-a-single-question-20261115-5f089df8` — CHAIN-VERIFIED via condenser_api.get_content (379 words, tags questions/conversation/blockchain). First broadcast in 27 days.
+
+**R367 full avoid-shield**: spentTitles rides the bridge payload; route cap 30→140+60; dedupe drops reason-coded (R308 compliance). Engine a7a416b74 + desk d2ccebe. Beat at 20:37Z: DRAFTS-QUEUED (3 fresh).
+
+**R364 anchor orphan cure** (PR #38): the witness anchored local HEAD, the push-retry rebase rewrote it (b7023977 GC-gone) → probe FAILED forever. Now anchors origin/saos-cockpit. New anchor 20:46:04Z txid 474df0b0 tip 72e03d0589 — LINEAGE HOLDS (verified is-ancestor).
+
+**R365 + W40 escrow revival** (PR #39): LIVE_FLEET_KEYS wired into escrow-payroll/treasury lanes (ROT2 measured 0-live). Canary W40 (lsa→haran agent macrame) COMPLETE on chain, run 43756144998: transfer 260466b3 · approves 8625cbda + d724095f · release 81eabcdb. All signatures chain-verified.
+
+**Permanence**: beat-keeper.sh now git-resident at steem@saos-cockpit deploy/ (was local-only, died with every wipe); desk scheduler runs sovereign+dex keepers every :00/:30 (armed on boot, verified 19:49Z). Bridge = the desk's z-ai provider — the only place fresh LLM drafts can exist.
+
+**Custody**: 14/14 @ 19:19Z heartbeat (hcsoldier6 recovered via MAIN_KEY — the interrupted verification from the last session, now closed).
+
+**Claims**: R364-R367 lease recorded in saos-owner-channel CLAIMS.json (16 claims).
+
+**Honest math**: 14 accounts hold ~5.7 SBD + 40.8 STEEM + 7.5 SP; engine grid ~37 SBD + 37 STEEM inventory; 730 realFills cumulative. The lanes run at dust scale — revenue is a drip that compounds (posts → rewards → SP → more RC), not a flood.
